@@ -1,0 +1,7 @@
+TheChatbot
+----------
+## These are the notes for creating a general purpose chatbot, a conversatinal A.I. The goal is that 
+it won't seem so supeirficial. At a first stage it is trained with Reddit data, from 2005 to 2021, about one 
+Terabytes of json data. Later phases probably will include data from stackoverflow and/or from personal Q&A 
+websites for scientific questions. There is also the goal to make it work with a sound synthesizer, e.g. google 
+Duplex.
