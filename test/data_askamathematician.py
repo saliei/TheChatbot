@@ -31,12 +31,25 @@ counter = 0
 # use a different user agent, the default agent is blocked
 page = requests.get(url, headers={"User-Agent": "XY"})
 print(page.status_code)
-soup = BeautifulSoup(page, 'html.parser')
+soup = BeautifulSoup(page.text, 'html.parser')
 qs_links_tags = soup.find_all('a', text = re.compile("Q:*"))
 qs_links = [atag["href"] for atag in qs_links_tags]
 
 # test for one of the questions
-qpage = requests.get(qs_links[0], headers={"User-Agent": "XY"})
-qsoup = BeautifulSoup(qpage.text, 'html.parser')
-q = qsoup.find("h1", {"class": "entry-title"})
-q = q.text
+# qpage = requests.get(qs_links[0], headers={"User-Agent": "XY"})
+# qsoup = BeautifulSoup(qpage.text, 'html.parser')
+# q = qsoup.find("h1", {"class": "entry-title"})
+# q = q.text
+
+def get_post_body(url):
+    qpage = requests.get(url, headers={"User-Agent": "XY"})
+    qsoup = BeautifulSoup(qpage.text, 'html.parser')
+    qtitle = qsoup.find("h1", {"class": "entry-title"})
+    qtitle = qtitle.text
+
+    qcontent = ''
+    content = qsoup.find("div", {"class": "entry-content"}).findAll('p')
+    for p in content:
+        qcontent += '\n' + ''.join(p.findAll(text=True))
+    
+    return qcontent
