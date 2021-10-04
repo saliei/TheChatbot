@@ -1,6 +1,10 @@
 # Data 
 RC_*
 
+# Test files
+qpage.txt
+test.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
