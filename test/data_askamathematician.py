@@ -26,4 +26,4 @@ def get_post_body(url):
     for p in content:
         qcontent += '\n' + ''.join(p.findAll(text=True))
     
-    return qcontent
+    return {"Title": qtitle, "Date": qdate, "Content": qcontent}
