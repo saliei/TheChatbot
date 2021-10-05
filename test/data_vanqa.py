@@ -15,6 +15,7 @@ subcats = soup.find_all("a", attrs = {"href": re.compile("subcategory.php*")})
 url_prefix = "https://van.physics.illinois.edu/qa/"
 subcat_links = [url_prefix + subcat["href"] for subcat in subcats]
 
+# find all Q&A links
 ques_links = []
 for subcat_link in subcat_links:
     subcat_page = requests.get(subcat_link)
