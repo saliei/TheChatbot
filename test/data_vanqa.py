@@ -2,13 +2,10 @@
 # Scrape the <https://van.physics.illinois.edu/qa/> website for Q&A posts.
 
 import re
+import json
 import requests
 from bs4 import BeautifulSoup
 
-# sample catgory page for getting all the categories
-url = "https://van.physics.illinois.edu/qa/subcategory.php?sub=Fire"
-# example Q&A page
-url_qa = "https://van.physics.illinois.edu/qa/listing.php?id=2353&t=magnetic-field-strength-at-the-end-of-a-solenoid"
 
 def get_qa_links(url):
     page = requests.get(url)
@@ -26,7 +23,7 @@ def get_qa_links(url):
             links = link_file.readlines()
             ques_links = [link.rstrip() for link in links]
             print("Total Q&A posts links: {}".format(len(ques_links)))
-    except (FileNotFoundError ,IOError) :
+    except (FileNotFoundError ,IOError):
         print("Getting the links for all the Q&A posts.")
         ques_links = []
         with open(links_file, "w") as link_file:
@@ -39,7 +36,7 @@ def get_qa_links(url):
                     ques_links.append(subcat_quns_link)
                     link_file.write("{}\n".format(subcat_quns_link))
                     if len(ques_links) % 50 == 0:
-                        print("Total Q&A posts: {}".format(len(ques_links)), end='\r')
+                        print("Total Q&A posts links: {}".format(len(ques_links)), end='\r')
             print("Total Q&A posts links: {}".format(len(ques_links)))
 
     return ques_links
@@ -47,6 +44,7 @@ def get_qa_links(url):
 def get_qa_content(url_qa):
     page_qa = requests.get(url_qa)
     soup_qa = BeautifulSoup(page_qa.text, 'html.parser')
+    # TODO: add the date of posts
     content_qa = {"url": url_qa}
     # find all Q&A sections
     qas = soup_qa.find_all("div", {"class": "listingletter"})
@@ -67,6 +65,24 @@ def get_qa_content(url_qa):
 
     return content_qa
 
-links = get_qa_links(url)
-content = get_qa_content(url_qa)
+if __name__ == "__main__":
+    # sample catgory page for getting all the categories
+    url = "https://van.physics.illinois.edu/qa/subcategory.php?sub=Fire"
+    # example Q&A page
+    url_qa = "https://van.physics.illinois.edu/qa/listing.php?id=2353&t=magnetic-field-strength-at-the-end-of-a-solenoid"
+
+    links = get_qa_links(url)
+
+    try:
+        with open("posts_content.json", "w") as posts_file:
+            contents = []
+            counter = 0
+            for link in links:
+                counter += 1
+                content = get_qa_content(link)
+                contents.append(content)
+                print("Total Q&A posts written: {}".format(counter), end='\r')
+            json.dump(contents, posts_file)
+    except (FileNotFoundError, IOError) as err:
+        print("{} error occured during handling the posts content file.".format(err))
 
