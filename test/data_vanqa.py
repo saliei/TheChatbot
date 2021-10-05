@@ -28,4 +28,3 @@ for subcat_link in subcat_links:
         print("Total Q&A posts: {}".format(len(ques_links)))
     
 
-
