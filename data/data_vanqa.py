@@ -74,6 +74,7 @@ if __name__ == "__main__":
     links = get_qa_links(url)
 
     try:
+        # TODO: make it more resistable to cancellation and buffer write
         with open("posts_content.json", "w") as posts_file:
             contents = []
             counter = 0
