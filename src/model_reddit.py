@@ -1,2 +1,8 @@
 #!/usr/bin/env python3
-import numpy
+# Preparing and testing the the data
+
+import sqlite3
+import json
+from datetime import datetime
+
+
