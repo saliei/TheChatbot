@@ -5,6 +5,9 @@ RC_*
 qpage.txt
 test.txt
 
+# Databases
+*.db
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
