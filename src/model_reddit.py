@@ -5,7 +5,7 @@ import sqlite3
 import json
 from datetime import datetime
 
-timeframe = '2005-12'
+timeframe = '2009-06'
 spl_transaction = []
 buffering = 1000
 
@@ -34,7 +34,8 @@ def find_parent(pid):
         else:
             return False
     except Exception as err:
-            return False
+        print("During handlig `find_parent` exceptioin occured: {}".format(err))
+        return False
 
 def find_existing_score(pid):
     try:
@@ -46,6 +47,7 @@ def find_existing_score(pid):
         else:
             return False
     except Exception as err:
+        print("During handling `find_existing_score` exception occured: {}".format(err))
         return False
 
 def acceptable(data):
@@ -72,7 +74,6 @@ def sql_insert_has_parent(commentid, parentid, parent, comment, subreddit, time,
     except Exception as err:
         print("s0 insertion", str(err))
 
-# TODO: print row count information
 def sql_insert_no_parent(commentid, parentid, comment, subreddit, time, score):
     try:
         query = """INSERT INTO parent_reply (parent_id, comment_id, comment, subreddit, unix, score) VALUES ("{}", "{}", "{}", "{}", {}, {});""".format(parentid, commentid, comment, subreddit, int(time), score)
@@ -98,7 +99,8 @@ if __name__ == '__main__':
     row_counter = 0
     paired_rows = 0
     
-    data_path = "../data/RC_{}".format(timeframe.split('-')[0], timeframe)
+    # data_path = "../data/RC_{}".format(timeframe.split('-')[0], timeframe)
+    data_path = "../data/RC_{}".format('-'.join(timeframe.split('-')), timeframe)
     with open(data_path, buffering=buffering) as data:
         for row in data:
             row_counter += 1
@@ -111,19 +113,19 @@ if __name__ == '__main__':
             subreddit = row["subreddit"]
             parent_data = find_parent(parent_id)
 
-            if score >= 2:
-                existing_comment_score = find_existing_score(parent_id)
-                if existing_comment_score:
-                    if score > existing_comment_score:
-                        if acceptable(body):
-                            sql_insert_replace_comment(comment_id, parent_id, body, subreddit, created_utc, score)
-                else:
-                    if acceptable(bbody):
-                        if parent_data:
-                            sql_insert_has_parent(comment_id, parent_id, parent_data, body, subreddit, created_utc, score)
-                            paired_rows += 1
-                        else:
-                            sql_insert_no_parent(comment_id, parent_id, body, subreddit, created_utc, score)
+            # if score >= 2:
+                # existing_comment_score = find_existing_score(parent_id)
+                # if existing_comment_score:
+                    # if score > existing_comment_score:
+                        # if acceptable(body):
+                            # sql_insert_replace_comment(comment_id, parent_id, body, subreddit, created_utc, score)
+                # else:
+                    # if acceptable(body):
+                        # if parent_data:
+                            # sql_insert_has_parent(comment_id, parent_id, parent_data, body, subreddit, created_utc, score)
+                            # paired_rows += 1
+                        # else:
+                            # sql_insert_no_parent(comment_id, parent_id, body, subreddit, created_utc, score)
 
             if row_counter % 100000 == 0:
                 print("Total row read: {}, Paired row: {}, Time: {}".format(row_counter, paired_rows, str(datetime.now())))
