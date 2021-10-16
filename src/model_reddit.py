@@ -7,7 +7,7 @@ from datetime import datetime
 import time
 
 timeframe = '2009-06'
-spl_transaction = []
+sql_transaction = []
 buffering = 1000
 start_row = 0
 cleanup = 1000000
@@ -24,12 +24,27 @@ def create_table():
     c.execute(query)
 
 def format_data(data):
-    data = data.replace('\n', ' newlinechar ').replace('\r', ' newlinechar ').replace('"', "'")
+    data = data.replace('\n', ' newlinechar ').replace('\r', ' newlinechar ')\
+            .replace('"', "'")
     return data
+
+def transaction_builder(query):
+    global sql_transaction
+    sql_transaction.append(query)
+    if len(sql_transaction) > 1000:
+        c.execute('BEGIN TRANSACTION')
+        for q in sql_transaction:
+            try:
+                c.execute(q)
+            except:
+                pass
+        connection.commit()
+        sql_transaction = []
 
 def find_parent(pid):
     try:
-        query = "SELECT comment FROM parent_reply WHERE comment_id = '{}' LIMIT 1".format(pid)
+        query = "SELECT comment FROM parent_reply WHERE comment_id = '{}' \
+                LIMIT 1".format(pid)
         c.execute(query)
         result = c.fetchone()
         if result != None:
@@ -42,7 +57,8 @@ def find_parent(pid):
 
 def find_existing_score(pid):
     try:
-        query = "SELECT score from parent_reply WHERE parent_id = '{}' LIMIT 1".format(pid)
+        query = "SELECT score from parent_reply WHERE parent_id = '{}' \
+                LIMIT 1".format(pid)
         c.execute(query)
         result = c.fetchone()
         if result != None:
@@ -50,13 +66,14 @@ def find_existing_score(pid):
         else:
             return False
     except Exception as err:
-        print("During handling `find_existing_score` exception occured: {}".format(err))
+        print("During handling `find_existing_score` exception occured: {}"\
+                .format(err))
         return False
 
 def acceptable(data):
-    if len(data.split(' ')) > 50 or len(data) < 1:
+    if len(data.split(' ')) > 1000 or len(data) < 1:
         return False
-    elif len(data) > 1000:
+    elif len(data) > 32000:
         return False
     elif data == '[deleted]' or data == '[removed]':
         return False
@@ -70,7 +87,7 @@ def sql_insert_replace_comment(commentid, parentid, parent, comment, \
                 parent = ?, comment = ?, subreddit = ?, unix = ?, score = ?  \
                 WHERE parent_id =?;""".format(parentid, commentid, parent, \
                 comment, subreddit, int(time), score, parentid)
-        transcation_bldr(query)
+        transaction_builder(query)
     except Exception as err:
         print("s0 insertion", str(err))
 
@@ -81,7 +98,7 @@ def sql_insert_has_parent(commentid, parentid, parent, comment, \
                 parent, comment, subreddit, unix, score) VALUES \
                 ("{}", "{}", "{}", "{}", "{}", {}, {})""".format(parentid, \
                 commentid, parent, comment, subreddit, int(time), score)
-        transcation_bldr(query)
+        transaction_builder(query)
     except Exception as err:
         print("s0 insertion", str(err))
 
@@ -91,22 +108,10 @@ def sql_insert_no_parent(commentid, parentid, comment, subreddit, time, score):
                 subreddit, unix, score) VALUES ("{}", "{}", "{}", "{}", {}, \
                 {});""".format(parentid, commentid, comment, subreddit, \
                 int(time), score)
-        transcation_bldr(query)
+        transaction_builder(query)
     except Exception as err:
         print("s0 insertion", str(err))
 
-def transcation_bldr(query):
-    global sql_transaction
-    sql_transaction.append(query)
-    if len(sql_transaction) > 1000:
-        c.execute('BEGIN TRANSACTION')
-        for q in sql_transaction:
-            try:
-                c.execute(q)
-            except:
-                pass
-        connection.commit()
-        sql_transaction = []
 
 if __name__ == '__main__':
     create_table()
@@ -115,33 +120,50 @@ if __name__ == '__main__':
     
     # data_path = "../data/RC_{}".format(timeframe.split('-')[0], timeframe)
     data_path = "../data/RC_{}".format('-'.join(timeframe.split('-')), timeframe)
-    with open(data_path, buffering=buffering) as data:
+    with open(data_path, buffering = buffering) as data:
         for row in data:
             row_counter += 1
-            row = json.loads(row)
-            parent_id = row["parent_id"]
-            body = format_data(row["body"])
-            created_utc = row["created_utc"]
-            score = row["score"]
-            comment_id = row["name"]
-            subreddit = row["subreddit"]
-            parent_data = find_parent(parent_id)
+            if row_counter > start_row:
+                try:
+                    row = json.loads(row)
+                    parent_id = row["parent_id"].split('_')[1]
+                    body = format_data(row["body"])
+                    created_utc = row["created_utc"]
+                    score = row["score"]
+                    comment_id = row["id"]
+                    subreddit = row["subreddit"]
 
-            # if score >= 2:
-                # existing_comment_score = find_existing_score(parent_id)
-                # if existing_comment_score:
-                    # if score > existing_comment_score:
-                        # if acceptable(body):
-                            # sql_insert_replace_comment(comment_id, parent_id, body, subreddit, created_utc, score)
-                # else:
-                    # if acceptable(body):
-                        # if parent_data:
-                            # sql_insert_has_parent(comment_id, parent_id, parent_data, body, subreddit, created_utc, score)
-                            # paired_rows += 1
-                        # else:
-                            # sql_insert_no_parent(comment_id, parent_id, body, subreddit, created_utc, score)
+                    parent_data = find_parent(parent_id)
 
-            if row_counter % 100000 == 0:
-                print("Total row read: {}, Paired row: {}, Time: {}".format(row_counter, paired_rows, str(datetime.now())))
+                    existing_comment_score = find_existing_score(parent_id)
 
+                    if existing_comment_score:
+                        if score > existing_comment_score:
+                            if acceptable(body):
+                                sql_insert_replace_comment(comment_id, \
+                                        parent_id, parent_data, body, \
+                                        subreddit, created_utc, score)
+
+                    else:
+                        if acceptable(body):
+                            if parent_data:
+                                if score >= 2:
+                                    sql_insert_has_parent(comment_id, \
+                                            parent_id, parent_data, body, \
+                                            subreddit, created_utc, score)
+                                    paired_rows += 1
+                            else:
+                                sql_insert_no_parent(comment_id, parent_id, \
+                                        body, subreddit, created_utc, score)
+                except Exception as err:
+                    print("Exception occcured during handling the database: {}".foramt(err))
+
+            if row_counter > start_row:
+                if row_counter % cleanup == 0:
+                    print("Cleaning up the database...")
+                    query = "DELETE FROM parent_reply HERE parent IS NULL"
+                    c.execute(query)
+                    connect.commit()
+                    c.execute("VACUUM")
+                    connection.commit()
 
