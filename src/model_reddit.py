@@ -4,20 +4,23 @@
 import sqlite3
 import json
 from datetime import datetime
+import time
 
 timeframe = '2009-06'
 spl_transaction = []
 buffering = 1000
+start_row = 0
+cleanup = 1000000
 
 connection = sqlite3.connect('{}.db'.format(timeframe))
 print(connection.total_changes)
-query = "CREATE TABLE IF NOT EXISTS parent_reply(parent_id TEXT PRIMARY KEY,\
-        comment_id TEXT UNIQUE, parent TEXT, comment TEXT, subreddit TEXT,\
-        unix INT, score INT)"
 c = connection.cursor()
     
 
 def create_table():
+    query = "CREATE TABLE IF NOT EXISTS parent_reply(parent_id TEXT PRIMARY KEY,\
+            comment_id TEXT UNIQUE, parent TEXT, comment TEXT, subreddit TEXT,\
+            unix INT, score INT)"
     c.execute(query)
 
 def format_data(data):
@@ -60,23 +63,34 @@ def acceptable(data):
     else:
         return True
 
-def sql_insert_replace_comment(commentid, parentid, parent, comment, subreddit, time, score):
+def sql_insert_replace_comment(commentid, parentid, parent, comment, \
+        subreddit, time, score):
     try:
-        query = """UPDATE parent_reply SET parent_id = ?, comment_id = ?, parent = ?, comment = ?, subreddit = ?, unix = ? WHERE parent_id =?;""".format(parentid, commentid, parent, comment, subreddit, int(time), score, parentid)
+        query = """UPDATE parent_reply SET parent_id = ?, comment_id = ?, \
+                parent = ?, comment = ?, subreddit = ?, unix = ?, score = ?  \
+                WHERE parent_id =?;""".format(parentid, commentid, parent, \
+                comment, subreddit, int(time), score, parentid)
         transcation_bldr(query)
     except Exception as err:
         print("s0 insertion", str(err))
 
-def sql_insert_has_parent(commentid, parentid, parent, comment, subreddit, time, score):
+def sql_insert_has_parent(commentid, parentid, parent, comment, \
+        subreddit, time, score):
     try:
-        query = """INSERT INTO parent_reply (parent_id, comment_id, parent, comment, subreddit, unix, score) VALUES ("{}", "{}", "{}", "{}", "{}", {}, {})""".format(parentid, commentid, parent, comment, subreddit, int(time), score)
+        query = """INSERT INTO parent_reply (parent_id, comment_id, \
+                parent, comment, subreddit, unix, score) VALUES \
+                ("{}", "{}", "{}", "{}", "{}", {}, {})""".format(parentid, \
+                commentid, parent, comment, subreddit, int(time), score)
         transcation_bldr(query)
     except Exception as err:
         print("s0 insertion", str(err))
 
 def sql_insert_no_parent(commentid, parentid, comment, subreddit, time, score):
     try:
-        query = """INSERT INTO parent_reply (parent_id, comment_id, comment, subreddit, unix, score) VALUES ("{}", "{}", "{}", "{}", {}, {});""".format(parentid, commentid, comment, subreddit, int(time), score)
+        query = """INSERT INTO parent_reply (parent_id, comment_id, comment, \
+                subreddit, unix, score) VALUES ("{}", "{}", "{}", "{}", {}, \
+                {});""".format(parentid, commentid, comment, subreddit, \
+                int(time), score)
         transcation_bldr(query)
     except Exception as err:
         print("s0 insertion", str(err))
@@ -91,8 +105,8 @@ def transcation_bldr(query):
                 c.execute(q)
             except:
                 pass
-            connection.commit()
-            sql_transaction = []
+        connection.commit()
+        sql_transaction = []
 
 if __name__ == '__main__':
     create_table()
