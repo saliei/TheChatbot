@@ -8,6 +8,10 @@ test.txt
 # Databases
 *.db
 
+# Test/Train data
+test*
+train*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
