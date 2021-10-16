@@ -161,9 +161,9 @@ if __name__ == '__main__':
             if row_counter > start_row:
                 if row_counter % cleanup == 0:
                     print("Cleaning up the database...")
-                    query = "DELETE FROM parent_reply HERE parent IS NULL"
+                    query = "DELETE FROM parent_reply WHERE parent IS NULL"
                     c.execute(query)
-                    connect.commit()
+                    connection.commit()
                     c.execute("VACUUM")
                     connection.commit()
 
