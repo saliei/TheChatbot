@@ -5,6 +5,9 @@ RC_*
 qpage.txt
 test.txt
 
+# Notes file
+chatbot.md
+
 # Databases
 *.db
 
@@ -141,3 +144,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# the notes file
