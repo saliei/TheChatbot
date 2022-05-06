@@ -201,3 +201,88 @@ for pair in pairs[:10]:
 
 # minimum word count threshold for trimming
 MIN_COUNT = 3
+
+def trim_rare_words(voc, pairs, MIN_COUNT):
+    voc.trim(MIN_COUNT)
+    # filter out pairs with trimmed words
+    keep_pairs = []
+    for pair in pairs:
+        input_sentence = pair[0]
+        output_sentence = pair[1]
+        keep_input = True
+        keep_output = True
+        for word in input_sentence.split(' '):
+            if word not in voc.word2index:
+                keep_input = False
+                break
+        for word in output_sentence.split(' '):
+            if word not in voc.word2index:
+                keep_output = False
+                break
+
+        if keep_input and keep_output:
+            keep_pairs.append(pair)
+
+    print("Trimmed from {} pairs to {}, {:.4f} of total.".format(len(pairs), 
+            len(keep_pairs), len(keep_pairs) / len(pairs)))
+    return keep_pairs
+
+# trim voc and pairs
+pairs = trim_rare_words(voc, pairs, MIN_COUNT)
+
+def indexes_from_sentence(voc, sentence):
+    return [voc.word2index[word] for word in sentence.split(' ')] + [EOS_token]
+
+def zero_padding(l, fillvalue=PAD_token):
+    return list(itertools.zip_longest(*l, fillvalue=fillvalue))
+
+def binary_matrix(l, value=PAD_token):
+    m = []
+    for i, seq in enumerate(l):
+        m.append([])
+        for token in seq:
+            if token == PAD_token:
+                m[i].append(0)
+            else:
+                m[i].append(1)
+    return m
+
+# returns padding input sequence tensor and lengths
+def input_var(l, voc):
+    indexes_batch = [indexes_from_sentence(voc, sentence) for sentence in l]
+    lengths = torch.tensor([len(indexes) for indexes in indexes_batch])
+    pad_list = zero_padding(indexes_batch)
+    pad_var = torch.LongTensor(pad_list)
+    return pad_var, lengths
+
+# return padded target sequence tensor, padding mask, and max target length
+def output_var(l, voc):
+    indexes_batch = [indexes_from_sentence(voc, sentence) for sentence in l]
+    max_target_len = max([len(indexes) for indexes in indexes_batch])
+    pad_list = zero_padding(indexes_batch)
+    mask = binary_matrix(pad_list)
+    mask = torch.BoolTensor(mask)
+    pad_var = torch.LongTensor(pad_list)
+    return pad_var, mask, max_target_len
+
+# return all items for a given batch of pairs
+def batch_to_train_data(voc, pair_batch):
+    pair_batch.sort(key=lambda x: len(x[0].split(' ')), reverse=True)
+    input_batch, output_batch = [], []
+    for pair in pair_batch:
+        input_batch.append(pair[0])
+        output_batch.append(pair[1])
+    inp, lengths = input_var(input_batch, voc)
+    output, mask, max_target_len = output_var(output_batch, voc)
+    return inp, lengths, output, mask, max_target_len
+
+# example for validation
+small_batch_size = 5
+batches = batch_to_train_data(voc, [random.choice(pairs) for _ in range(small_batch_size)])
+input_variable, lengths, target_variable, mask, max_target_len = batches
+
+print("input_variable: ", input_variable)
+print("lengths: ", lengths)
+print("target_variable: ", target_variable)
+print("mask: ", mask)
+print("max_target_len: ", max_target_len)
