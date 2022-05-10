@@ -286,3 +286,29 @@ print("lengths: ", lengths)
 print("target_variable: ", target_variable)
 print("mask: ", mask)
 print("max_target_len: ", max_target_len)
+
+class EncoderRNN(nn.Module):
+    def __init__(self, hidden_size, embedding, n_layers=1, dropout=0):
+        super(EncoderRNN, self).__init__()
+        self.n_layers = n_layers
+        self.hidden_size = hidden_size
+        self.embedding = embedding
+
+        # initialize GRU. the input_size and hidden_size params are both set to `hidden_size`
+        # because out input size is a word embedding with number of features == `hidden_size`
+        self.gru = nn.GRU(hidden_size, hidden_size, n_layers, dropout=(0 if n_layers == 1 else dropout), bidirectional=True)
+
+    def forward(self, input_seq, input_length, hidden=None):
+        # convert word indexes to embeddings
+        embedded = self.embedding(input_seq)
+        # pack padded batch of sequences for RNN module
+        packed = nn.utils.rnn.pack_padded_sequence(embedded, input_lengths)
+        # forward pass through GRU
+        outputs, hidden = self.gru(packed, hidden)
+        # unpack padding
+        outputs, _ = nn.utils.rnn.pad_packed_sequence(outputs)
+        # sum bidirectional GRU outputs
+        outputs = outputs[:, :, :self.hidden_size] + outputs[:, :, self.hidden_size:]
+        # return outputs and final hidden state
+        return outputs, hidden
+        
