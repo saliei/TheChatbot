@@ -517,12 +517,147 @@ class greedy_search_decode(nn.Module):
         self.decoder = decoder
 
     def forward(self, input_seq, input_length, max_length):
-       # forward input through encoder model
-       encoder_outputs, encoder_hidden = self.encoder(input_seq, input_length)
-       # prepare encoder's final hidden layer to be first hidden input to the decoder
-       decoder_input = torch.ones(1, 1, device=device, dtype=torch.long) * SOS_token
-       # initialize tensors to append deoded words to
-       all_tokens = torch.zeros([0], device=device, dtype=torch.long)
-       all_scores = torch.zeros([0], device=device)
+        # forward input through encoder model
+        encoder_outputs, encoder_hidden = self.encoder(input_seq, input_length)
+        # prepare encoder's final hidden layer to be first hidden input to the decoder
+        decoder_input = torch.ones(1, 1, device=device, dtype=torch.long) * SOS_token
+        # initialize tensors to append deoded words 
+        all_tokens = torch.zeros([0], device=device, dtype=torch.long)
+        all_scores = torch.zeros([0], device=device)
+        # iteratively decode one word token at at time
+        for _ in range(max_length):
+            # forward padd through decoder
+            decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden, encoder_outputs)
+            # obtain most likely word token and its softmax score
+            decoder_scores, decoder_input = torch.max(decoder_output, dim=1)
+            # record token and score
+            all_tokens = torch.cat((all_tokens, decoder_input), dim=0)
+            all_scores = torch.cat((all_scores, decoder_scores), dim=0)
+            # prepare current token to be next decoder input (add a dimension)
+            decoder_input = torch.unsqueeze(decoder_input, 0)
+        # return collections of word tokens and scores
+        return all_tokens, all_scores
 
 
+def evaulate(encoder, decoder, searcher, voc, sentence, max_length=MAX_LENGTH):
+    # format input sentence as a batch
+    # words -> indexes
+    indexes_batch = [indexes_from_sentence(voc, sentence)]
+    lengths = torch.tensor([len(indexes) for indexes in indexes_batch])
+    # transpose dimensions of batch to match models' expectations
+    input_batch = torch.LongTensor(indexes_batch).transpose(0, 1)
+    # use appropriate device
+    input_batch = input_batch.to(device)
+    lengths = lengths.to("cpu")
+    # decode sentence with searcher
+    tokens, scores = searcher(input_batch, legths, max_length)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+    # indexes -> words
+    decoded_words = [voc.index2word[toekn.item()] for token in tokens]
+    return decoded_words
+
+def evaluate_input(encoder, decoder, searcher, voc):
+    input_sentence = ''
+    while(1):
+        try:
+            input_sentence = input('> ')
+            if input_sentence == 'q' or input_sentence == 'quit': break
+            input_sentence =  normalize_string(input_sentence)
+            output_words = evaluate(encoder, decoder, searcher, voc, input_sentence)
+            output_words[:] = [x for x in output_words if not (x == 'EOS' or x == 'PAD')]
+            print('Bot:', ' '.join(output_wrods))
+        except KeyError:
+            print("Error: Encountered unknown word.")
+
+
+# configuring models
+model_name = "cb_model"
+attn_model = "dot"
+# attn_model = "general"
+# attn_model = "contact"
+hidden_size = 500
+enoder_n_layers = 2
+decoder_n_layers = 2
+dropout = 0.1
+
+# set checkpoints to load from; set to None if starting from scratch
+load_filename = None
+checkpoint_iter = 4000
+# load_filename = os.path.join(save_dir, model_name, corpus_name, 
+#            '{}-{}_{}'.format(encoder_n_layers, decoder_n_layers, hidden_size), 
+#            '{}_checkpoint.tar'.format(checkpoint_iter))
+
+# load model if load_filename is provided
+if load_filename:
+    # if loading on same machine the model was trained on
+    checkpoint = torch.load(load_filename)
+    # if loading a model trained on GPU to CPU
+    # checkpoint = torch.load(load_filename, map_location=torch.device('cpu'))
+    encoder_sd = checkpoint["en"]
+    decoder_sd checkpoint["de"]
+    encoder_optimizer_sd = checkpoint["en_opt"]
+    decoder_optimizer_sd = checkpoint["de_opt"]
+    embedding_sd = checkpoint["embedding"]
+    voc.__dict__ = checkpoint["voc_dict"]
+
+print("Building encoder and decoder ...")
+# initialize word embeddings
+embedding = nn.Embedding(voc.num_words, hidden_size)
+if load_filename:
+    embedding.load_state_dict(embedding_sd)
+#initialize encoder & decoder models
+encoder = EncoderRNN(hidden_size, embedding, encoder_n_layers, dropout)
+decoder = LuongAttnDecoderRNN(attn_model, embedding, hidden_size, voc.num_words, decoder_n_layers, dropout)
+if load_filename:
+    encoder.load_state_dict(encoder_sd)
+    decoder.load_state_dict(decoder_sd)
+# use appropriate device
+encoder = encoder.to(device)
+decoder = decoder.to(device)
+print("Models built and ready to go!")
+
+# configure trainin/optimization
+clip = 50.0
+teacher_forcing_ratio = 1.0
+learning_rate = 0.0001
+decoder_learning_ratio = 5.0
+n_iteration = 4000
+print_every = 1
+save_every = 500
+
+# ensure dropout layers are in train mode
+encoder.train()
+decoder.train()
+
+# initialize optimizers
+print("Building optimizers ...")
+encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
+decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate * decoder_learning_ratio)
+if load_filename:
+    encoder_optimizer.load_state_dict(encoder_optimizer_sd)
+    decoder_optimizer.load_state_dict(decoder_optimizer_sd)
+
+# if cuda is available configure cuda to call
+for state in encoder_optimizer.state.values():
+    for k, v in state.items():
+        if isinstance(v, torch.Tensor):
+            state[k] = v.cuda()
+
+for state in decoder_optimizer.state.values():
+    for k, v in state.items():
+        if isinstance(v, torch.Tensor):
+            state[k] = v.cuda()
+
+print("Starting Training!")
+train_iters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, decoder_optimizer, 
+        embedding, encoder_n_layers, decoder_n_layers, save_dir, n_iteration, batch_size, 
+        print_every, save_every, clip, corpus_name, load_filename)
+
+# set dropout layers to eval mode
+encoder.eval()
+decoder.eval()
+
+# initialize search module
+searcher = greedy_search_decode(encoder, decoder)
+
+# begin chatting
+evaluate_input(encoder, decoder, searcher, voc)
