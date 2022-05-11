@@ -526,6 +526,8 @@ class greedy_search_decode(nn.Module):
         # forward input through encoder model
         encoder_outputs, encoder_hidden = self.encoder(input_seq, input_length)
         # prepare encoder's final hidden layer to be first hidden input to the decoder
+        decoder_hidden = encoder_hidden[:decoder.n_layers]
+        # initialize decoder input with SOS_token
         decoder_input = torch.ones(1, 1, device=device, dtype=torch.long) * SOS_token
         # initialize tensors to append deoded words 
         all_tokens = torch.zeros([0], device=device, dtype=torch.long)
@@ -545,7 +547,7 @@ class greedy_search_decode(nn.Module):
         return all_tokens, all_scores
 
 
-def evaulate(encoder, decoder, searcher, voc, sentence, max_length=MAX_LENGTH):
+def evaluate(encoder, decoder, searcher, voc, sentence, max_length=MAX_LENGTH):
     # format input sentence as a batch
     # words -> indexes
     indexes_batch = [indexes_from_sentence(voc, sentence)]
@@ -556,9 +558,9 @@ def evaulate(encoder, decoder, searcher, voc, sentence, max_length=MAX_LENGTH):
     input_batch = input_batch.to(device)
     lengths = lengths.to("cpu")
     # decode sentence with searcher
-    tokens, scores = searcher(input_batch, legths, max_length)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+    tokens, scores = searcher(input_batch, lengths, max_length)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
     # indexes -> words
-    decoded_words = [voc.index2word[toekn.item()] for token in tokens]
+    decoded_words = [voc.index2word[token.item()] for token in tokens]
     return decoded_words
 
 def evaluate_input(encoder, decoder, searcher, voc):
@@ -570,7 +572,7 @@ def evaluate_input(encoder, decoder, searcher, voc):
             input_sentence =  normalize_string(input_sentence)
             output_words = evaluate(encoder, decoder, searcher, voc, input_sentence)
             output_words[:] = [x for x in output_words if not (x == 'EOS' or x == 'PAD')]
-            print('Bot:', ' '.join(output_wrods))
+            print('Bot:', ' '.join(output_words))
         except KeyError:
             print("Error: Encountered unknown word.")
 
@@ -587,7 +589,7 @@ dropout = 0.1
 batch_size = 64
 
 # set checkpoints to load from; set to None if starting from scratch
-load_filename = None
+load_filename = "/home/saliei/Documents/github/TheChatbot/pytorch_example/dats/save/cb_model/corpus movie-dialogs corpus/2-2-500/4000_checkpoint.tar"
 checkpoint_iter = 4000
 # load_filename = os.path.join(save_dir, model_name, corpus_name, 
 #            '{}-{}_{}'.format(encoder_n_layers, decoder_n_layers, hidden_size), 
@@ -647,12 +649,12 @@ if load_filename:
 for state in encoder_optimizer.state.values():
     for k, v in state.items():
         if isinstance(v, torch.Tensor):
-            state[k] = v.cuda()
+            state[k] = v.cpu()
 
 for state in decoder_optimizer.state.values():
     for k, v in state.items():
         if isinstance(v, torch.Tensor):
-            state[k] = v.cuda()
+            state[k] = v.cpu()
 
 print("Starting Training!")
 train_iters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, decoder_optimizer, 
