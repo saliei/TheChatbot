@@ -298,7 +298,7 @@ class EncoderRNN(nn.Module):
         # because out input size is a word embedding with number of features == `hidden_size`
         self.gru = nn.GRU(hidden_size, hidden_size, n_layers, dropout=(0 if n_layers == 1 else dropout), bidirectional=True)
 
-    def forward(self, input_seq, input_length, hidden=None):
+    def forward(self, input_seq, input_lengths, hidden=None):
         # convert word indexes to embeddings
         embedded = self.embedding(input_seq)
         # pack padded batch of sequences for RNN module
@@ -474,10 +474,16 @@ def train_iters(model_name, voc, pairs, encoder, decoder, encoder_optimizer,
     # load batches for each iteration
     training_batches = [batch_to_train_data(voc, [random.choice(pairs) for _ in range(batch_size)]) 
             for _ in range(n_iteration)]
-    # initializations
+
+    print("Initilizating...")
+    start_iteration = 1
+    print_loss = 0
+    if load_filename:
+        start_iteration = checkpoint["iteration"] + 1
+
     print("Training...")
     for iteration in range(start_iteration, n_iteration + 1):
-        training_batche = training_batches[iteration - 1]
+        training_batch = training_batches[iteration - 1]
         # extract field from batch
         input_variable, lengths, target_variable, mask, max_target_len = training_batch
         # run a training iteration with batch
@@ -496,8 +502,8 @@ def train_iters(model_name, voc, pairs, encoder, decoder, encoder_optimizer,
         if (iteration % save_every == 0):
             directory = os.path.join(save_dir, model_name, corpus_name, '{}-{}-{}'.format(
                 encoder_n_layers, decoder_n_layers, hidden_size))
-            if not os.path.exists((directory):
-                    os.makedirs((directory)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
             torch.save({
                 "iteration": iteration,
                 "en": encoder.state_dict(),
@@ -575,9 +581,10 @@ attn_model = "dot"
 # attn_model = "general"
 # attn_model = "contact"
 hidden_size = 500
-enoder_n_layers = 2
+encoder_n_layers = 2
 decoder_n_layers = 2
 dropout = 0.1
+batch_size = 64
 
 # set checkpoints to load from; set to None if starting from scratch
 load_filename = None
@@ -593,7 +600,7 @@ if load_filename:
     # if loading a model trained on GPU to CPU
     # checkpoint = torch.load(load_filename, map_location=torch.device('cpu'))
     encoder_sd = checkpoint["en"]
-    decoder_sd checkpoint["de"]
+    decoder_sd = checkpoint["de"]
     encoder_optimizer_sd = checkpoint["en_opt"]
     decoder_optimizer_sd = checkpoint["de_opt"]
     embedding_sd = checkpoint["embedding"]
